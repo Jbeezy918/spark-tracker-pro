@@ -17,8 +17,8 @@ stripe.api_key = os.getenv("STRIPE_SECRET_KEY", "sk_test_demo_key_replace_with_r
 class SparkPaymentProcessor:
     """Handles all Stripe payment operations for Spark Tracker"""
 
-    PRICE_PRO_MONTHLY = 1200  # $12.00 in cents
-    PRICE_FLEET_MONTHLY = 3900  # $39.00 in cents
+    PRICE_BASIC_MONTHLY = 699   # $6.99 in cents
+    PRICE_PRO_MONTHLY = 999     # $9.99 in cents
 
     def __init__(self):
         self.currency = "usd"
@@ -27,15 +27,15 @@ class SparkPaymentProcessor:
         self,
         customer_email: str,
         tier: str = "pro",
-        success_url: str = "https://savvytechautomations.com/success",
-        cancel_url: str = "https://savvytechautomations.com/pricing"
+        success_url: str = "https://spark-tracker-pro.streamlit.app/?payment_success=true",
+        cancel_url: str = "https://spark-tracker-pro.streamlit.app/"
     ) -> Dict:
         """
         Create a Stripe Checkout session for subscription
 
         Args:
             customer_email: User's email address
-            tier: "pro" or "fleet"
+            tier: "basic" or "pro"
             success_url: Where to redirect on successful payment
             cancel_url: Where to redirect if user cancels
 
@@ -44,8 +44,14 @@ class SparkPaymentProcessor:
         """
         try:
             # Determine price based on tier
-            price = self.PRICE_PRO_MONTHLY if tier == "pro" else self.PRICE_FLEET_MONTHLY
-            tier_name = "Pro Driver" if tier == "pro" else "Fleet Master"
+            if tier == "basic":
+                price = self.PRICE_BASIC_MONTHLY
+                tier_name = "Basic"
+                tier_features = "Unlimited trips, 15 themes, voice commands"
+            else:  # pro
+                price = self.PRICE_PRO_MONTHLY
+                tier_name = "Pro"
+                tier_features = "Everything + 30 themes, AI assistant, screen capture"
 
             # Create Checkout Session
             session = stripe.checkout.Session.create(
@@ -55,7 +61,7 @@ class SparkPaymentProcessor:
                         'currency': self.currency,
                         'product_data': {
                             'name': f'Spark Tracker {tier_name}',
-                            'description': f'Monthly subscription to Spark Tracker {tier_name} tier',
+                            'description': tier_features,
                         },
                         'unit_amount': price,
                         'recurring': {
@@ -65,7 +71,7 @@ class SparkPaymentProcessor:
                     'quantity': 1,
                 }],
                 mode='subscription',
-                success_url=success_url + f'?session_id={{CHECKOUT_SESSION_ID}}',
+                success_url=success_url + f'&tier={tier}&session_id={{CHECKOUT_SESSION_ID}}',
                 cancel_url=cancel_url,
                 customer_email=customer_email,
                 allow_promotion_codes=True,  # Enable discount codes
